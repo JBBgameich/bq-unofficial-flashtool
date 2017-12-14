@@ -1,5 +1,6 @@
 #/usr/bin/python3
-# Tested on BQ Aquaris U. Please check the partitions before trying to flash an other device
+# Tested on BQ Aquaris U. Please check the partitions before trying to
+# flash an other device
 
 import requests
 import json
@@ -12,14 +13,17 @@ from archive import extract
 print("I: Rebooting device to bootloader")
 subprocess.call(["adb", "reboot", "bootloader"])
 
+
 def get_serialnum():
     print("I: Finding serial number")
     # Extract serial number from fastboot
-    _getvar_serialno = subprocess.check_output(['fastboot', 'getvar', 'serialno'], stderr=subprocess.STDOUT)
+    _getvar_serialno = subprocess.check_output(
+        ['fastboot', 'getvar', 'serialno'], stderr=subprocess.STDOUT)
     _serialno_string = _getvar_serialno.decode("utf-8")
     _serialno_string_split = _serialno_string.split(": ")
     serialno = _serialno_string_split[1].split("\n")
     return serialno[0]
+
 
 def querry():
     print("I: Querrying database")
@@ -34,18 +38,23 @@ def querry():
     global firmware_target_folder
     global firmware_target_name
 
-    firmware_target_folder = "firmware_" + firmware["product"] + "_" + firmware["version"]
-    firmware_target_name = "firmware_" + firmware["product"] + "_" + firmware["version"] + ".zip"
+    firmware_target_folder = "firmware_" + \
+        firmware["product"] + "_" + firmware["version"]
+    firmware_target_name = "firmware_" + \
+        firmware["product"] + "_" + firmware["version"] + ".zip"
+
 
 def download():
     try:
         subprocess.call(["axel", "-o", firmware_target_name, firmware["url"]])
     except OSError as e:
         if e.errno == os.errno.ENOENT:
-            subprocess.call(["wget", "-O", firmware_target_name, firmware["url"]])
+            subprocess.call(
+                ["wget", "-O", firmware_target_name, firmware["url"]])
         else:
             print("Could not download the firmware")
             raise
+
 
 def extract_firmware():
     print("I: Extracting firmware")
@@ -53,8 +62,10 @@ def extract_firmware():
         os.mkdir("firmware_" + firmware["product"] + "_" + firmware["version"])
         extract(firmware_target_name, firmware_target_folder)
 
+
 def flash(partition, image):
     subprocess.call(["fastboot", "flash", partition, image])
+
 
 def fash_fast():
     print("I: flashing system and boot")
@@ -62,6 +73,7 @@ def fash_fast():
 
     flash("boot", firmware_target_folder + "/boot.img")
     flash("system", firmware_target_folder + "/system.img")
+
 
 def flash_full():
     flash("boot", firmware_target_folder + "/boot.img")
@@ -83,6 +95,7 @@ def flash_full():
     flash("cmnlibbak", firmware_target_folder + "cmnlib.mbn")
     flash("cmnkib64", firmware_target_folder + "cmnlib64.mbn")
     flash("cmnkib64bak", firmware_target_folder + "cmnlib64.mbn")
+
 
 querry()
 download()
