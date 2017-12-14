@@ -21,38 +21,45 @@ def get_serialnum():
     serialno = _serialno_string_split[1].split("\n")
     return serialno[0]
 
-print("I: Querrying database")
-# Request firmware download url from BQ API
-apiurl = "http://devices.bq.com/api/getHardReset/" + get_serialnum()
-apiresponse = requests.get(apiurl)
+def querry():
+    print("I: Querrying database")
+    # Request firmware download url from BQ API
+    apiurl = "http://devices.bq.com/api/getHardReset/" + get_serialnum()
+    apiresponse = requests.get(apiurl)
 
-firmware = json.loads(apiresponse.content)
+    global firmware
+    firmware = json.loads(apiresponse.content)
 
-print("I: Firmware found at " + firmware["url"])
-firmware_target_folder = "firmware_" + firmware["product"] + "_" + firmware["version"]
-firmware_target_name = "firmware_" + firmware["product"] + "_" + firmware["version"] + ".zip"
+    print("I: Firmware found at " + firmware["url"])
+    global firmware_target_folder
+    global firmware_target_name
 
-try:
-    subprocess.call(["axel", "-o", firmware_target_name, firmware["url"]])
-except OSError as e:
-    if e.errno == os.errno.ENOENT:
-        subprocess.call(["wget", "-O", firmware_target_name, firmware["url"]])
-    else:
-        print("Could not download the firmware")
-        raise
+    firmware_target_folder = "firmware_" + firmware["product"] + "_" + firmware["version"]
+    firmware_target_name = "firmware_" + firmware["product"] + "_" + firmware["version"] + ".zip"
 
-print("I: Extracting firmware")
-if not os.path.isdir(firmware_target_folder):
-    os.mkdir("firmware_" + firmware["product"] + "_" + firmware["version"])
-    extract(firmware_target_name, firmware_target_folder)
+def download():
+    try:
+        subprocess.call(["axel", "-o", firmware_target_name, firmware["url"]])
+    except OSError as e:
+        if e.errno == os.errno.ENOENT:
+            subprocess.call(["wget", "-O", firmware_target_name, firmware["url"]])
+        else:
+            print("Could not download the firmware")
+            raise
 
-print("I: flashing system and boot")
-print("WARN: Do not disconnect the device now or it will end up with no firmware installed!")
+def extract():
+    print("I: Extracting firmware")
+    if not os.path.isdir(firmware_target_folder):
+        os.mkdir("firmware_" + firmware["product"] + "_" + firmware["version"])
+        extract(firmware_target_name, firmware_target_folder)
 
 def flash(partition, image):
     subprocess.call(["fastboot", "flash", partition, image])
 
 def fash_fast():
+    print("I: flashing system and boot")
+    print("WARN: Do not disconnect the device now or it will end up with no firmware installed!")
+
     flash("boot", firmware_target_folder + "/boot.img")
     flash("system", firmware_target_folder + "/system.img")
 
@@ -77,4 +84,7 @@ def flash_full():
     flash("cmnkib64", firmware_target_folder + "cmnlib64.mbn")
     flash("cmnkib64bak", firmware_target_folder + "cmnlib64.mbn")
 
+querry()
+download()
+extract()
 flash_fast()
