@@ -47,7 +47,7 @@ def download():
             print("Could not download the firmware")
             raise
 
-def extract():
+def extract_firmware():
     print("I: Extracting firmware")
     if not os.path.isdir(firmware_target_folder):
         os.mkdir("firmware_" + firmware["product"] + "_" + firmware["version"])
@@ -86,5 +86,5 @@ def flash_full():
 
 querry()
 download()
-extract()
+extract_firmware()
 flash_fast()
