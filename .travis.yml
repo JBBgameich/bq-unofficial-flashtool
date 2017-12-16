@@ -1,0 +1,16 @@
+language: python
+python:
+  - "3.6"
+  - "nightly"
+sudo: required
+dist: trusty
+
+install:
+  - sudo apt install python3-requests python3-pip make nuitka
+  - sudo pip3 install archive
+  - git clone https://github.com/hhatto/autopep8
+  - cd autopep8; sudo python3 setup.py install
+
+script:
+  - autopep8 -a firmware-flash.py
+  - make
