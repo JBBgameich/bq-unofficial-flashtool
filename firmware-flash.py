@@ -10,6 +10,7 @@ import sys
 
 from archive import extract
 
+
 def reboot_bootloader():
     print("I: Rebooting device to bootloader")
     subprocess.call(["adb", "reboot", "bootloader"])
@@ -52,9 +53,14 @@ def download():
                 response = requests.get(firmware["url"], stream=True)
                 total_length = response.headers.get('content-length')
 
-                print("Downloading %s" % firmware_target_name + " (" + total_length + " bytes)")
+                print(
+                    "Downloading %s" %
+                    firmware_target_name +
+                    " (" +
+                    total_length +
+                    " bytes)")
 
-                if total_length is None: # no content length header
+                if total_length is None:  # no content length header
                     f.write(response.content)
                 else:
                     dl = 0
@@ -63,12 +69,13 @@ def download():
                         dl += len(data)
                         f.write(data)
                         done = int(50 * dl / total_length)
-                        sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) )
+                        sys.stdout.write("\r[%s%s]" %
+                                         ('=' * done, ' ' * (50 - done)))
                         sys.stdout.flush()
                 print()
-        except:
-                print("Could not download the firmware")
-                raise
+        except BaseException:
+            print("Could not download the firmware")
+            raise
 
 
 def extract_firmware():
@@ -114,6 +121,7 @@ def flash_full():
 
 def reboot_system():
     subprocess.call(["fastboot", "reboot"])
+
 
 reboot_bootloader()
 querry()
