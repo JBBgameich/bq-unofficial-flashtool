@@ -6,12 +6,13 @@ import requests
 import json
 import subprocess
 import os
+import sys
 
 from archive import extract
 
-
-print("I: Rebooting device to bootloader")
-subprocess.call(["adb", "reboot", "bootloader"])
+def reboot_bootloader():
+    print("I: Rebooting device to bootloader")
+    subprocess.call(["adb", "reboot", "bootloader"])
 
 
 def get_serialnum():
@@ -45,15 +46,29 @@ def querry():
 
 
 def download():
-    try:
-        subprocess.call(["axel", "-o", firmware_target_name, firmware["url"]])
-    except OSError as e:
-        if e.errno == os.errno.ENOENT:
-            subprocess.call(
-                ["wget", "-O", firmware_target_name, firmware["url"]])
-        else:
-            print("Could not download the firmware")
-            raise
+    if not os.path.isfile(firmware_target_name):
+        try:
+            with open(firmware_target_name, "wb") as f:
+                response = requests.get(firmware["url"], stream=True)
+                total_length = response.headers.get('content-length')
+
+                print("Downloading %s" % firmware_target_name + " (" + total_length + " bytes)")
+
+                if total_length is None: # no content length header
+                    f.write(response.content)
+                else:
+                    dl = 0
+                    total_length = int(total_length)
+                    for data in response.iter_content(chunk_size=4096):
+                        dl += len(data)
+                        f.write(data)
+                        done = int(50 * dl / total_length)
+                        sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) )
+                        sys.stdout.flush()
+                print()
+        except:
+                print("Could not download the firmware")
+                raise
 
 
 def extract_firmware():
@@ -67,7 +82,7 @@ def flash(partition, image):
     subprocess.call(["fastboot", "flash", partition, image])
 
 
-def fash_fast():
+def flash_fast():
     print("I: flashing system and boot")
     print("WARN: Do not disconnect the device now or it will end up with no firmware installed!")
 
@@ -97,7 +112,12 @@ def flash_full():
     flash("cmnkib64bak", firmware_target_folder + "cmnlib64.mbn")
 
 
+def reboot_system():
+    subprocess.call(["fastboot", "reboot"])
+
+reboot_bootloader()
 querry()
 download()
 extract_firmware()
 flash_fast()
+reboot_system()
