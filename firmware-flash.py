@@ -19,12 +19,11 @@ def reboot_bootloader():
 def get_serialnum():
     print("I: Finding serial number")
     # Extract serial number from fastboot
-    _getvar_serialno = subprocess.check_output(
-        ['fastboot', 'getvar', 'serialno'], stderr=subprocess.STDOUT)
-    _serialno_string = _getvar_serialno.decode("utf-8")
-    _serialno_string_split = _serialno_string.split(": ")
-    serialno = _serialno_string_split[1].split("\n")
-    return serialno[0]
+    serialno = subprocess.check_output(
+        ['fastboot', 'getvar', 'serialno'], stderr=subprocess.STDOUT) \
+        .decode("utf-8").split(": ")[1].split("\n")[0]
+
+    return serialno
 
 
 def querry():
@@ -47,35 +46,35 @@ def querry():
 
 
 def download():
-    if not os.path.isfile(firmware_target_name):
-        try:
-            with open(firmware_target_name, "wb") as f:
-                response = requests.get(firmware["url"], stream=True)
-                total_length = response.headers.get('content-length')
+    try:
+        response = requests.get(firmware["url"], stream=True)
+        total_length = response.headers.get('content-length')
 
-                print(
-                    "Downloading %s" %
-                    firmware_target_name +
-                    " (" +
-                    total_length +
-                    " bytes)")
+        print(
+            "Downloading " +
+            firmware_target_name +
+            " (" +
+            total_length +
+            " bytes)")
 
-                if total_length is None:  # no content length header
-                    f.write(response.content)
-                else:
-                    dl = 0
-                    total_length = int(total_length)
-                    for data in response.iter_content(chunk_size=4096):
-                        dl += len(data)
-                        f.write(data)
-                        done = int(50 * dl / total_length)
-                        sys.stdout.write("\r[%s%s]" %
-                                         ('=' * done, ' ' * (50 - done)))
-                        sys.stdout.flush()
-                print()
-        except BaseException:
-            print("Could not download the firmware")
-            raise
+        if os.path.isfile(firmware_target_name) and total_length == os.path.getsize(firmware_target_name):
+            print("File is already completely downloaded")
+        else:
+            f = open(firmware_target_name, "wb")
+            dl = 0
+            total_length = int(total_length)
+            for data in response.iter_content(chunk_size=4096):
+                dl += len(data)
+                f.write(data)
+                done = int(50 * dl / total_length)
+                sys.stdout.write("\r[%s%s]" %
+                                    ('=' * done, ' ' * (50 - done)))
+                sys.stdout.flush()
+        print()
+    except BaseException:
+        print("Could not download the firmware")
+        raise
+        sys.exit(1)
 
 
 def extract_firmware():
