@@ -7,7 +7,9 @@ import json
 import subprocess
 import os
 import sys
+import hashlib
 
+from bs4 import BeautifulSoup
 from archive import extract
 
 
@@ -30,10 +32,16 @@ def querry():
     print("I: Querrying database")
     # Request firmware download url from BQ API
     apiurl = "http://devices.bq.com/api/getHardReset/" + get_serialnum()
-    apiresponse = requests.get(apiurl)
 
     global firmware
-    firmware = json.loads(apiresponse.content)
+    firmware = json.loads(requests.get(apiurl).content)
+
+    # Find md5sum on official download page
+    supporturl = "https://www.bq.com/de/support/" + firmware["product"].replace("_", "-") + "/support-sheet"
+
+    global md5sum
+    md5sumsoup = BeautifulSoup(requests.get(supporturl).content.decode(), "html.parser")
+    md5sum = md5sumsoup.find(href=firmware["url"]).parent.find_all("span")[1].string.split(": ")[1]
 
     print("I: Firmware found at " + firmware["url"])
     global firmware_target_folder
@@ -47,34 +55,19 @@ def querry():
 
 def download():
     try:
-        response = requests.get(firmware["url"], stream=True)
-        total_length = response.headers.get('content-length')
-
-        print(
-            "Downloading " +
-            firmware_target_name +
-            " (" +
-            total_length +
-            " bytes)")
-
-        if os.path.isfile(firmware_target_name) and total_length == os.path.getsize(firmware_target_name):
-            print("File is already completely downloaded")
-        else:
-            f = open(firmware_target_name, "wb")
-            dl = 0
-            total_length = int(total_length)
-            for data in response.iter_content(chunk_size=4096):
-                dl += len(data)
-                f.write(data)
-                done = int(50 * dl / total_length)
-                sys.stdout.write("\r[%s%s]" %
-                                    ('=' * done, ' ' * (50 - done)))
-                sys.stdout.flush()
-        print()
+        subprocess.call(["wget", "--continue", firmware["url"], "-O", firmware_target_name])
     except BaseException:
         print("Could not download the firmware")
         raise
         sys.exit(1)
+
+
+def verify():
+    if not hashlib.md5(open(firmware_target_name, 'rb').read()).hexdigest() == md5sum:
+        print("E: The download failed, file is corrupted")
+        sys.exit[1]
+    else:
+        print("I: Firmware checksum matches and it can be flashed")
 
 
 def extract_firmware():
@@ -90,7 +83,6 @@ def flash(partition, image):
 
 def flash_fast():
     print("I: flashing system and boot")
-    print("WARN: Do not disconnect the device now or it will end up with no firmware installed!")
 
     flash("boot", firmware_target_folder + "/boot.img")
     flash("system", firmware_target_folder + "/system.img")
@@ -125,6 +117,8 @@ def reboot_system():
 reboot_bootloader()
 querry()
 download()
+verify()
 extract_firmware()
+print("WARN: Do not disconnect the device now or it will end up with no firmware installed!")
 flash_fast()
 reboot_system()
