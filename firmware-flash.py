@@ -8,6 +8,7 @@ import subprocess
 import os
 import sys
 import hashlib
+import re
 
 from bs4 import BeautifulSoup
 from archive import extract
@@ -26,6 +27,23 @@ def get_serialnum():
         .decode("utf-8").split(": ")[1].split("\n")[0]
 
     return serialno
+
+
+def check_unlocked():
+    if not re.search("Device unlocked: true", subprocess.check_output(["fastboot", "oem", "device-info"])):
+        print("Your device is not unloocked, if OEM unlocking is enabled in the Android Settings, \
+            the device can be unlocked now.")
+        unlock_now = input("Do you want to unlock it now? [y/n]")
+
+        if unlock_now == "y":
+            subprocess.call(["fastboot", "oem", "unlock"])
+        else:
+            print("Without unlocking the device can't be flashed, \
+                rebooting device into system now.")
+            print("If you want to unlock the device but don't have OEM unlocking enabled, \
+                enable it now and restart this script")
+            subprocess.call(["fastboot","reboot"])
+            sys.exit(1)
 
 
 def querry():
@@ -115,6 +133,7 @@ def reboot_system():
 
 
 reboot_bootloader()
+check_unlocked
 querry()
 download()
 verify()
